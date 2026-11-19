@@ -1,7 +1,0 @@
-# Replace with an absolute path. Split images by vehicle first.
-path: C:/your_data/fill_port_yolo
-train: images/train
-val: images/val
-test: images/test
-names:
-  0: spout
