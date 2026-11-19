@@ -1,0 +1,15 @@
+# Front-end geometry
+
+The default full-image path in `hed3d.run` uses the Section 2.2 geometry implementation in [`paper.py`](../hed3d/hierarchy/paper.py). It rotates, centers, and scales the selected ellipse to produce the student's aligned ROI. Use `--roi-input` for an existing ROI. The `gated` and `legacy` geometry modes remain available through `--geometry`. Use `--no-aligned` to explicitly select the detection-box crop. The output record includes `geometry_mode` and, when an ROI is produced, `roi_mode`.
+
+| Stage | Implementation |
+| --- | --- |
+| Gradient and thresholding | Compute the Di Zenzo color tensor from 3 × 3 Sobel derivatives after Gaussian smoothing. Calculate the strong threshold at the 90th percentile of gradient magnitudes greater than 1e-6. The weak threshold is 0.4 times the strong threshold. Use connected-component hysteresis, then evaluate an additional locally normalized Sauvola candidate mask (window 31 × 31, k = 0.34 and R = 128). |
+| Endpoints and arc connection | Estimate endpoint tangents by PCA in a 5 × 5 skeleton neighborhood. Determine provisional center and radius using radial symmetry voting. Check a 0.15 relative radius discrepancy, a 3 px endpoint distance, a 15° link-direction tolerance, and 10° limits for tangent agreement and turning. |
+| Growth and overlap | Require coverage improvement and a reduced maximum gap on the provisional fit. The normalized coverage × supported-angular-span score must improve by at least 1e-4 and 1%. The overlapping-arc path also requires more than 10° of angular overlap. |
+| Robust fit | Use isotropically normalized direct least squares followed by up to eight Tukey-biweight IRLS updates, with c = 4.685 and residual-change tolerance 1e-5. Retain up to 12 fitted points per angular bin across 36 bins. Gate candidates at coverage ≥0.80, maximum gap ≤60°, and mean absolute radial residual ≤0.02. |
+| Rim selection | Suppress duplicate outlines when the sampled directional boundary discrepancy is at most 1 original-image pixel. Group accepted candidates with centers within 18 px of the cluster anchor, directions within 12° modulo 180°, and nested full axis lengths. Rank groups by the sum of their semi-major axes weighted by adjusted mean support, then select the outer rim of the highest-ranked group. The selected outer rim supplies the geometric anchor for the aligned ROI and teacher thin-ring sampling. |
+
+For a detection box of width (W_b) and height (H_b), the integer search radii span from `max(4, int(0.20 * min(Wb, Hb)))` to `int(0.65 * max(Wb, Hb))` with a 3 px step. Provisional centers lie in a disk centered on the detection box with radius `max(3, int(0.25 * min(Wb, Hb)))`. Candidate gates also require a full major-axis length from 0.45 to 1.15 times the larger box dimension, a minor-to-major ratio of at least 0.28, and a normalized center displacement of at most 0.25.
+
+These settings describe the public default reference implementation. Applying it to the original evaluation cohort requires authorized access to the study data. The reported aggregate results retain their original experimental provenance.
